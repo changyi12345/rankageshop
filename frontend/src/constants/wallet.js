@@ -1,0 +1,5 @@
+export const TOPUP_PRESETS = [30000, 50000, 100000, 200000, 500000, 1000000];
+
+export const TOPUP_MIN = 30000;
+
+export const TOPUP_MAX = 10000000;

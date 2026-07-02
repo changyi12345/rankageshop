@@ -1,0 +1,421 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+  engineType      = "library"
+  binaryTargets   = ["native"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            Int                 @id @default(autoincrement())
+  username      String              @unique
+  email         String              @unique
+  password      String?
+  googleId      String?             @unique
+  avatarUrl     String?
+  role          String              @default("USER")
+  isBanned      Boolean             @default(false)
+  banReason     String?
+  bannedAt      DateTime?
+  referralCode  String?             @unique
+  referredById  Int?
+  referredBy    User?               @relation("UserReferrals", fields: [referredById], references: [id])
+  referrals     User[]              @relation("UserReferrals")
+  walletBalance Decimal             @default(0) @db.Decimal(12, 2)
+  emailVerified Boolean             @default(false)
+  phone         String?             @unique
+  phoneVerified Boolean             @default(false)
+  totpSecret    String?
+  totpEnabled   Boolean             @default(false)
+  totpBackupHashes String[]         @default([])
+  orders        Order[]
+  walletTxns    WalletTransaction[]
+  pushSubscriptions PushSubscription[]
+  fcmTokens         FcmToken[]
+  passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  phoneOtps         PhoneOtp[]
+  notifications     UserNotification[]
+  chatConversations ChatConversation[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Product model (supports both direct top-ups and vouchers)
+model Product {
+  id               Int               @id @default(autoincrement())
+  g2bulkProductId  Int?              // For voucher products
+  g2bulkGameCode   String?           // For direct top-up products
+  name             String
+  type             String            // "direct_topup" or "voucher"
+  categoryId       Int?
+  categoryTitle    String?
+  description      String?
+  imageUrl         String?
+  unitPrice        Decimal
+  faceValue        Decimal?          // For voucher products (denomination)
+  stock            Int?
+  isActive         Boolean           @default(true)
+  topUpPackages    TopUpPackage[]
+  orders           Order[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+// Game model (for direct top-ups)
+model Game {
+  id               Int               @id @default(autoincrement())
+  g2bulkCode       String            @unique
+  name             String
+  description      String?
+  iconUrl          String?
+  requiredFields   String[]          // JSON array of required fields (e.g., ["userid", "serverid"])
+  hasServers       Boolean           @default(false)
+  servers          GameServer[]
+  topUpPackages    TopUpPackage[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+// Game server model (if needed for a game)
+model GameServer {
+  id               Int               @id @default(autoincrement())
+  gameId           Int
+  g2bulkServerKey  String
+  name             String
+  game             Game              @relation(fields: [gameId], references: [id])
+  createdAt        DateTime          @default(now())
+}
+
+// Top-up package (denominations for direct top-up)
+model TopUpPackage {
+  id               Int               @id @default(autoincrement())
+  productId        Int
+  gameId           Int
+  g2bulkCatalogueName String
+  name             String
+  amount           Decimal
+  price            Decimal
+  currency         String            @default("MMK")
+  product          Product           @relation(fields: [productId], references: [id])
+  game             Game              @relation(fields: [gameId], references: [id])
+  orders           Order[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model Order {
+  id                   Int                  @id @default(autoincrement())
+  userId               Int
+  productId            Int
+  topUpPackageId       Int?
+  g2bulkOrderId        Int?
+  g2bulkTransactionId  Int?                 // For vouchers only
+  type                 String               // "direct_topup" or "voucher"
+  status               String               @default("PENDING")
+  paymentMethod        String?
+  quantity             Int                  @default(1)
+  totalPrice           Decimal
+  batchId              String?
+  remark               String?
+  user                 User                 @relation(fields: [userId], references: [id])
+  product              Product              @relation(fields: [productId], references: [id])
+  topUpPackage         TopUpPackage?        @relation(fields: [topUpPackageId], references: [id])
+  topUpInput           OrderTopUpInput?
+  voucherCodes         OrderVoucherCode[]
+  paymentProof         PaymentProof?
+  transactionLogs      TransactionLog[]
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  completedAt          DateTime?
+}
+
+// Stores user input for direct top-up orders
+model OrderTopUpInput {
+  id                   Int                  @id @default(autoincrement())
+  orderId              Int                  @unique
+  gameCode             String
+  playerId             String
+  serverId             String?
+  charname             String?
+  catalogueName        String
+  playerName           String?
+  order                Order                @relation(fields: [orderId], references: [id])
+  createdAt            DateTime             @default(now())
+}
+
+// Stores delivered voucher codes for voucher orders
+model OrderVoucherCode {
+  id                   Int                  @id @default(autoincrement())
+  orderId              Int
+  voucherCode          String
+  deliveredAt          DateTime             @default(now())
+  isRedeemed           Boolean              @default(false)
+  order                Order                @relation(fields: [orderId], references: [id])
+  createdAt            DateTime             @default(now())
+}
+
+// Wallet top-up / spend history
+model WalletTransaction {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  type          String   // topup | spend | refund
+  amount        Decimal  @db.Decimal(12, 2)
+  balanceBefore Decimal  @db.Decimal(12, 2)
+  balanceAfter  Decimal  @db.Decimal(12, 2)
+  status        String   @default("PENDING") // PENDING | COMPLETED | REJECTED
+  description   String?
+  reference     String?
+  proofImageUrl String?
+  user          User     @relation(fields: [userId], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+// Transaction logs for wallet/balance changes
+model TransactionLog {
+  id                   Int                  @id @default(autoincrement())
+  orderId              Int?
+  g2bulkTransactionId  Int?
+  transactionType      String               // "add_balance" or "charge_balance"
+  amount               Decimal
+  balanceBefore        Decimal?
+  balanceAfter         Decimal?
+  status               String
+  description          String?
+  order                Order?               @relation(fields: [orderId], references: [id])
+  createdAt            DateTime             @default(now())
+}
+
+model PaymentProof {
+  id           Int      @id @default(autoincrement())
+  orderId      Int      @unique
+  method       String
+  reference    String?
+  note         String?
+  imageUrl     String?
+  status       String   @default("PENDING") // PENDING | VERIFIED | REJECTED
+  rejectReason String?
+  order        Order    @relation(fields: [orderId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model PromoCode {
+  id              Int      @id @default(autoincrement())
+  code            String   @unique
+  discountPercent Int
+  maxUsage        Int
+  usageCount      Int      @default(0)
+  validFrom       DateTime
+  validUntil      DateTime
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ShopSettings {
+  id                 Int      @id @default(1)
+  shopName           String   @default("RanKageShop")
+  shopTagline        String?
+  contactEmail       String?
+  contactPhone       String?
+  supportTelegram    String?
+  paymentMethods     String[] @default(["KBZ Pay", "Wave Pay", "Bank Transfer"])
+  paymentAccounts    Json?
+  maintenanceMode    Boolean  @default(false)
+  maintenanceMessage String?
+  minWalletTopup     Decimal  @default(1000) @db.Decimal(12, 2)
+  usdToMmkRate       Decimal  @default(4500) @db.Decimal(12, 2)
+  priceMarkupPercent Decimal  @default(0) @db.Decimal(5, 2)
+  logoUrl            String?
+  faviconUrl         String?
+  g2bulkApiKey       String?
+  featureFlags       Json     @default("{}")
+  g2bulkLowBalanceThreshold Decimal? @db.Decimal(12, 2)
+  g2bulkPriceAlertMinPct   Decimal  @default(2) @db.Decimal(5, 2)
+  g2bulkPriceAlertMinUsd   Decimal  @default(0.25) @db.Decimal(12, 4)
+  g2bulkAutoPriceSync      Boolean  @default(true)
+  liveChatUrl        String?
+  smtpHost           String?
+  smtpPort           Int      @default(587)
+  smtpUser           String?
+  smtpPass           String?
+  smtpFrom           String?
+  updatedAt          DateTime @updatedAt
+}
+
+model G2BulkPriceSnapshot {
+  id        Int      @id @default(autoincrement())
+  itemKey   String   @unique
+  itemType  String
+  label     String
+  sourceUsd Decimal  @db.Decimal(12, 4)
+  updatedAt DateTime @updatedAt
+}
+
+model G2BulkPriceAlert {
+  id          Int      @id @default(autoincrement())
+  itemKey     String
+  itemType    String
+  label       String
+  previousUsd Decimal  @db.Decimal(12, 4)
+  currentUsd  Decimal  @db.Decimal(12, 4)
+  increaseUsd Decimal  @db.Decimal(12, 4)
+  increasePct Decimal  @db.Decimal(8, 2)
+  dismissed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([dismissed, createdAt])
+  @@index([itemKey])
+}
+
+model ShopBanner {
+  id        Int       @id @default(autoincrement())
+  title     String
+  imageUrl  String
+  linkUrl   String?
+  position  String    @default("home_hero")
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model LegalPage {
+  slug       String   @id
+  sections   Json     @default("[]")
+  sectionsMm Json     @default("[]")
+  updatedAt  DateTime @updatedAt
+}
+
+model ShopEvent {
+  id          Int      @id @default(autoincrement())
+  title       String
+  slug        String   @unique
+  excerpt     String?
+  content     String
+  imageUrl    String?
+  isPublished Boolean  @default(true)
+  isPinned    Boolean  @default(false)
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AdminActivityLog {
+  id        Int      @id @default(autoincrement())
+  action    String
+  entity    String?
+  entityId  String?
+  detail    String?
+  createdAt DateTime @default(now())
+}
+
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model FcmToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  token     String   @unique
+  platform  String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model PhoneOtp {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+}
+
+model UserNotification {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String    @default("system")
+  title     String
+  body      String
+  url       String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+}
+
+model ChatConversation {
+  id            Int           @id @default(autoincrement())
+  userId        Int
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status        String        @default("OPEN")
+  lastMessageAt DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  messages      ChatMessage[]
+
+  @@index([userId, status])
+  @@index([status, lastMessageAt])
+}
+
+model ChatMessage {
+  id             Int              @id @default(autoincrement())
+  conversationId Int
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderType     String
+  senderId       Int?
+  body           String
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([conversationId, senderType, readAt])
+}

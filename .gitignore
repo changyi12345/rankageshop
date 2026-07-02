@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Environment & secrets (never commit)
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+frontend/.env.*
+
+# Uploads & runtime data
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Logs & OS
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+.cursor/
+
+# macOS archive junk
+__MACOSX/
+
+# Local test artifacts
+tmp_login.json
+*.local.json
+
+# Test coverage
+coverage/
+
+# Prisma
+backend/prisma/*.db
+backend/prisma/*.db-journal
