@@ -8,6 +8,8 @@ import GameDetailPage from "./pages/GameDetailPage";
 import HomePage from "./pages/HomePage";
 import GamesPage from "./pages/GamesPage";
 import PromotionsPage from "./pages/PromotionsPage";
+import EventsPage from "./pages/EventsPage";
+import EventDetailPage from "./pages/EventDetailPage";
 import HowItWorksPage from "./pages/HowItWorksPage";
 import HelpPage from "./pages/HelpPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
@@ -69,6 +71,8 @@ export default function App() {
         <Route path="vouchers" element={<VouchersPage />} />
         <Route path="vouchers/:id" element={<VoucherDetailPage />} />
         <Route path="promotions" element={<PromotionsPage />} />
+        <Route path="events" element={<EventsPage />} />
+        <Route path="events/:slug" element={<EventDetailPage />} />
         <Route path="how-it-works" element={<HowItWorksPage />} />
         <Route path="help" element={<HelpPage />} />
         <Route path="wallet/top-up" element={<WalletTopUpPage />} />

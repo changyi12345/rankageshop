@@ -29,6 +29,7 @@ export const HOME_PATH = "/";
 export const GAMES_PATH = "/games";
 export const VOUCHERS_PATH = "/vouchers";
 export const PROMOTIONS_PATH = "/promotions";
+export const EVENTS_PATH = "/events";
 export const HOW_IT_WORKS_PATH = "/how-it-works";
 export const HELP_PATH = "/help";
 export const CONTACT_SUPPORT_PATH = `${HELP_PATH}#contact-support`;

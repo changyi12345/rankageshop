@@ -6,6 +6,7 @@ import { GAMES_PATH, VOUCHERS_PATH, WALLET_ADD_LABEL } from "../config/siteNav";
 import { useAuth } from "../context/AuthContext";
 import { useStoreGamesContext } from "../context/StoreGamesContext";
 import { buildHeroSlides, filterHeroSlides } from "../utils/heroSlides";
+import { mapHeroBannerToSlide } from "../utils/cmsContent";
 
 const ROTATE_MS = 5500;
 
@@ -24,47 +25,25 @@ function HeroVisual({ slide, slides, activeIndex, onSelect }) {
     );
   }
 
+  const slideLinkClass =
+    "group relative block overflow-hidden rounded-3xl border border-white/10 shadow-glow";
+
   return (
     <div className="relative">
-      <Link
-        to={slide.href}
-        className="group relative block overflow-hidden rounded-3xl border border-white/10 shadow-glow"
-      >
-        <div className="relative aspect-[16/10] sm:aspect-[16/11]">
-          {slides.map((item, index) => (
-            <div
-              key={item.id}
-              className={`hero-slide ${index === activeIndex ? "hero-slide--active" : ""}`}
-              aria-hidden={index !== activeIndex}
-            >
-              <div
-                className={`absolute inset-0 ${
-                  item.imageUrl ? "bg-surface-raised" : `bg-gradient-to-br ${item.gradient}`
-                }`}
-              >
-                {item.imageUrl ? (
-                  <img
-                    src={item.imageUrl}
-                    alt=""
-                    className="h-full w-full object-cover transition-transform duration-[900ms] ease-softer group-hover:scale-[1.03]"
-                    loading={index === 0 ? "eager" : "lazy"}
-                  />
-                ) : null}
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/20 to-transparent opacity-90" />
-              <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-7">
-                <span className="inline-flex rounded-full border border-accent/35 bg-accent/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-accent-light">
-                  {item.typeLabel}
-                </span>
-                <h2 className="mt-3 text-xl font-bold text-white sm:text-2xl lg:text-3xl">
-                  {item.title}
-                </h2>
-                <p className="mt-2 line-clamp-2 text-sm text-slate-300">{item.subtitle}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Link>
+      {slide.external ? (
+        <a
+          href={slide.href}
+          target="_blank"
+          rel="noreferrer"
+          className={slideLinkClass}
+        >
+          <HeroSlideFrames slides={slides} activeIndex={activeIndex} />
+        </a>
+      ) : (
+        <Link to={slide.href} className={slideLinkClass}>
+          <HeroSlideFrames slides={slides} activeIndex={activeIndex} />
+        </Link>
+      )}
 
       {slides.length > 1 ? (
         <div className="mt-4 flex items-center justify-center gap-2">
@@ -84,7 +63,44 @@ function HeroVisual({ slide, slides, activeIndex, onSelect }) {
   );
 }
 
-export default function FeaturedHero() {
+function HeroSlideFrames({ slides, activeIndex }) {
+  return (
+    <div className="relative aspect-[16/10] sm:aspect-[16/11]">
+      {slides.map((item, index) => (
+        <div
+          key={item.id}
+          className={`hero-slide ${index === activeIndex ? "hero-slide--active" : ""}`}
+          aria-hidden={index !== activeIndex}
+        >
+          <div
+            className={`absolute inset-0 ${
+              item.imageUrl ? "bg-surface-raised" : `bg-gradient-to-br ${item.gradient}`
+            }`}
+          >
+            {item.imageUrl ? (
+              <img
+                src={item.imageUrl}
+                alt=""
+                className="h-full w-full object-cover transition-transform duration-[900ms] ease-softer group-hover:scale-[1.03]"
+                loading={index === 0 ? "eager" : "lazy"}
+              />
+            ) : null}
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/20 to-transparent opacity-90" />
+          <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-7">
+            <span className="inline-flex rounded-full border border-accent/35 bg-accent/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-accent-light">
+              {item.typeLabel}
+            </span>
+            <h2 className="mt-3 text-xl font-bold text-white sm:text-2xl lg:text-3xl">{item.title}</h2>
+            <p className="mt-2 line-clamp-2 text-sm text-slate-300">{item.subtitle}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function FeaturedHero({ heroBanners = [] }) {
   const { user, loading: authLoading } = useAuth();
   const { games, loading, error } = useStoreGamesContext();
   const [voucherCategories, setVoucherCategories] = useState([]);
@@ -105,15 +121,27 @@ export default function FeaturedHero() {
     };
   }, []);
 
-  const allSlides = useMemo(
+  const cmsSlides = useMemo(
+    () => (heroBanners || []).map(mapHeroBannerToSlide).filter((s) => s.imageUrl),
+    [heroBanners]
+  );
+
+  const usingCmsHero = cmsSlides.length > 0;
+
+  const catalogSlides = useMemo(
     () => buildHeroSlides(games, voucherCategories),
     [games, voucherCategories]
   );
 
-  const slides = useMemo(
-    () => filterHeroSlides(allSlides, activeType),
-    [allSlides, activeType]
+  const allSlides = useMemo(
+    () => (usingCmsHero ? cmsSlides : catalogSlides),
+    [usingCmsHero, cmsSlides, catalogSlides]
   );
+
+  const slides = useMemo(() => {
+    if (usingCmsHero) return allSlides;
+    return filterHeroSlides(allSlides, activeType);
+  }, [allSlides, activeType, usingCmsHero]);
 
   const slide = slides[activeIndex] ?? slides[0] ?? null;
 
@@ -186,9 +214,20 @@ export default function FeaturedHero() {
                 Vouchers
               </Link>
               {slide ? (
-                <Link to={slide.href} className="btn-ghost px-4 py-3 text-accent-light">
-                  {slide.title} →
-                </Link>
+                slide.external ? (
+                  <a
+                    href={slide.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-ghost px-4 py-3 text-accent-light"
+                  >
+                    {slide.title} →
+                  </a>
+                ) : (
+                  <Link to={slide.href} className="btn-ghost px-4 py-3 text-accent-light">
+                    {slide.title} →
+                  </Link>
+                )
               ) : null}
             </div>
             {!authLoading && !user ? (
@@ -220,22 +259,24 @@ export default function FeaturedHero() {
           </div>
 
           <div className="home-stagger home-stagger--2">
-            <div className="mb-4 flex flex-wrap gap-2">
-              {TYPE_TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveType(tab.id)}
-                  className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-500 ease-softer ${
-                    activeType === tab.id
-                      ? "border-accent/50 bg-accent/15 text-accent-light"
-                      : "border-surface-border bg-surface-raised/80 text-slate-400 hover:border-accent/30 hover:text-white"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+            {!usingCmsHero ? (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {TYPE_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveType(tab.id)}
+                    className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-500 ease-softer ${
+                      activeType === tab.id
+                        ? "border-accent/50 bg-accent/15 text-accent-light"
+                        : "border-surface-border bg-surface-raised/80 text-slate-400 hover:border-accent/30 hover:text-white"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <HeroVisual
               slide={slide}
               slides={slides}

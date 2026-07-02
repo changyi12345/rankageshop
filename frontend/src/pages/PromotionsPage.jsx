@@ -1,5 +1,8 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import DealsBanner from "../components/DealsBanner";
+import ShopEventsSection from "../components/ShopEventsSection";
+import { fetchHomeContent } from "../api/content";
 import { GAMES_PATH, HOW_IT_WORKS_PATH, WALLET_ADD_LABEL, WALLET_TOPUP_PATH } from "../config/siteNav";
 
 const HIGHLIGHTS = [
@@ -24,9 +27,26 @@ const HIGHLIGHTS = [
 ];
 
 export default function PromotionsPage() {
+  const [events, setEvents] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchHomeContent()
+      .then((data) => {
+        if (!cancelled) setEvents(Array.isArray(data?.events) ? data.events : []);
+      })
+      .catch(() => {
+        if (!cancelled) setEvents([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <>
       <DealsBanner />
+      <ShopEventsSection events={events} title="Shop events & news" />
       <section className="py-14 sm:py-16 lg:py-20">
         <div className="site-container">
           <div className="mb-10">
