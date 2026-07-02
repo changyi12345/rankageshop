@@ -8,6 +8,13 @@ import { TwoFactorService } from './two-factor.service';
 import { ConflictException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
+jest.mock('./two-factor.service', () => ({
+  TwoFactorService: jest.fn().mockImplementation(() => ({
+    createPendingToken: jest.fn().mockReturnValue('2fa-token'),
+    verifyLogin: jest.fn(),
+  })),
+}));
+
 describe('AuthService', () => {
   let service: AuthService;
   const prisma = {
@@ -21,6 +28,13 @@ describe('AuthService', () => {
       deleteMany: jest.fn(),
       create: jest.fn(),
       findFirst: jest.fn(),
+    },
+    refreshToken: {
+      create: jest.fn().mockResolvedValue({ id: 1 }),
+      findFirst: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
+      update: jest.fn(),
+      updateMany: jest.fn(),
     },
     emailVerificationToken: {
       deleteMany: jest.fn(),
@@ -64,7 +78,7 @@ describe('AuthService', () => {
     it('throws ConflictException when username exists', async () => {
       prisma.user.findFirst.mockResolvedValue({ id: 1 });
       await expect(
-        service.register({ username: 'test', email: 'a@b.com', password: 'secret1' }),
+        service.register({ username: 'test', email: 'a@b.com', password: 'secret12' }),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -83,7 +97,7 @@ describe('AuthService', () => {
       const result = await service.register({
         username: 'test',
         email: 'a@b.com',
-        password: 'secret1',
+        password: 'secret12',
       });
 
       expect(result.access_token).toBe('test-token');
@@ -103,7 +117,7 @@ describe('AuthService', () => {
       prisma.user.update.mockResolvedValue({});
       prisma.passwordResetToken.deleteMany.mockResolvedValue({ count: 1 });
 
-      const result = await service.resetPassword('valid-token', 'newpass1');
+      const result = await service.resetPassword('valid-token', 'newpass12');
       expect(result.message).toContain('successfully');
     });
   });
@@ -111,7 +125,7 @@ describe('AuthService', () => {
   describe('login', () => {
     it('validates password with bcrypt', async () => {
       const hash = await bcrypt.hash('secret1', 10);
-      prisma.user.findUnique.mockResolvedValue({
+      prisma.user.findFirst.mockResolvedValue({
         id: 1,
         username: 'test',
         email: 'a@b.com',
@@ -119,10 +133,13 @@ describe('AuthService', () => {
         role: 'USER',
         referralCode: 'X',
         walletBalance: 0,
+        isBanned: false,
+        totpEnabled: false,
       });
 
       const result = await service.login({ username: 'test', password: 'secret1' });
-      expect(result.access_token).toBe('test-token');
+      expect('access_token' in result && result.access_token).toBe('test-token');
+      expect(prisma.refreshToken.create).toHaveBeenCalled();
     });
   });
 });

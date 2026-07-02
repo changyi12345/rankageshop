@@ -7,7 +7,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RolesGuard } from './guards/roles.guard';
-import { JWT_SECRET } from './jwt.constants';
+import { JWT_SECRET, ACCESS_TOKEN_SECONDS } from './jwt.constants';
 
 import { TwoFactorService } from './two-factor.service';
 
@@ -18,7 +18,7 @@ import { TwoFactorService } from './two-factor.service';
     PassportModule,
     JwtModule.register({
       secret: JWT_SECRET,
-      signOptions: { expiresIn: '7d' },
+      signOptions: { expiresIn: ACCESS_TOKEN_SECONDS },
     }),
   ],
   providers: [AuthService, JwtStrategy, RolesGuard, TwoFactorService],

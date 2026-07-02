@@ -152,6 +152,7 @@ npx prisma db execute --file prisma/migrations/20250625230000_google_oauth/migra
 npx prisma db execute --file prisma/migrations/20250702120000_g2bulk_price_monitoring/migration.sql
 npx prisma db execute --file prisma/migrations/20250702140000_user_notifications/migration.sql
 npx prisma db execute --file prisma/migrations/20250702150000_live_chat/migration.sql
+npx prisma db execute --file prisma/migrations/20250702160000_refresh_tokens/migration.sql
 npx prisma generate
 npm run build
 ```
@@ -209,6 +210,16 @@ Config files က `deploy/nginx/` ထဲမှာ ပါပြီး — server �
 ```bash
 sudo cp /var/www/rankageshop/deploy/nginx/rankage.shop.conf /etc/nginx/sites-available/
 sudo cp /var/www/rankageshop/deploy/nginx/api.rankage.shop.conf /etc/nginx/sites-available/
+sudo cp /var/www/rankageshop/deploy/nginx/rate-limit-zones.conf /etc/nginx/conf.d/rankage-rate-limit-zones.conf
+```
+
+`/etc/nginx/nginx.conf` ထဲ `http { }` block မှာ တစ်ကြိမ်သာ ထည့်ပါ:
+
+```nginx
+include /etc/nginx/conf.d/rankage-rate-limit-zones.conf;
+```
+
+```bash
 sudo ln -sf /etc/nginx/sites-available/rankage.shop.conf /etc/nginx/sites-enabled/
 sudo ln -sf /etc/nginx/sites-available/api.rankage.shop.conf /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default

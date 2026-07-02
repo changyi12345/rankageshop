@@ -65,7 +65,7 @@ async function refreshAccessToken() {
 
     if (response.ok) {
       const data = await response.json();
-      setTokens(data.access ?? data.access_token, data.refresh ?? data.refresh_token ?? data.access_token);
+      setTokens(data.access_token, data.refresh_token);
       return true;
     }
   } catch {

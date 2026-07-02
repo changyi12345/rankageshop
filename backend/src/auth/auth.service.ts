@@ -11,6 +11,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { SettingsService } from '../settings/settings.service';
 import { TwoFactorService } from './two-factor.service';
 import { normalizePhone } from '../common/phone.util';
+import { ACCESS_TOKEN_SECONDS, REFRESH_TOKEN_DAYS } from './jwt.constants';
+import { PASSWORD_MIN_LENGTH } from './dto/register.dto';
 
 function generateReferralCode(username: string): string {
   const base = username.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4) || 'USER';
@@ -65,7 +67,7 @@ export class AuthService {
     };
   }
 
-  private issueAuthResponse(user: {
+  private async issueAuthResponse(user: {
     id: number;
     username: string;
     email: string;
@@ -75,11 +77,35 @@ export class AuthService {
     emailVerified?: boolean;
     avatarUrl?: string | null;
   }) {
-    const payload = { sub: user.id, username: user.username, role: user.role };
-    const token = this.jwtService.sign(payload);
+    const accessToken = this.jwtService.sign(
+      { sub: user.id, username: user.username, role: user.role, purpose: 'access' },
+      { expiresIn: ACCESS_TOKEN_SECONDS },
+    );
+
+    const refreshPlain = randomBytes(48).toString('hex');
+    const refreshHash = hashToken(refreshPlain);
+    const expiresAt = new Date(Date.now() + REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000);
+
+    await this.prisma.refreshToken.create({
+      data: { userId: user.id, tokenHash: refreshHash, expiresAt },
+    });
+
+    const stale = await this.prisma.refreshToken.findMany({
+      where: { userId: user.id, revokedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+      skip: 5,
+      select: { id: true },
+    });
+    if (stale.length > 0) {
+      await this.prisma.refreshToken.updateMany({
+        where: { id: { in: stale.map((row) => row.id) } },
+        data: { revokedAt: new Date() },
+      });
+    }
+
     return {
-      access_token: token,
-      refresh_token: token,
+      access_token: accessToken,
+      refresh_token: refreshPlain,
       user: this.formatUser(user),
     };
   }
@@ -196,7 +222,7 @@ export class AuthService {
       );
     }
 
-    return this.issueAuthResponse(user);
+    return await this.issueAuthResponse(user);
   }
 
   private async createEmailVerification(userId: number, email: string) {
@@ -268,14 +294,11 @@ export class AuthService {
       },
     });
 
-    const payload = { sub: user.id, username: user.username, role: user.role };
-    const token = this.jwtService.sign(payload);
-
     const verifyMeta = await this.createEmailVerification(user.id, user.email);
+    const auth = await this.issueAuthResponse(user);
 
     return {
-      access_token: token,
-      user: this.formatUser(user),
+      ...auth,
       ...verifyMeta,
     };
   }
@@ -313,12 +336,12 @@ export class AuthService {
       };
     }
 
-    return this.issueAuthResponse(user);
+    return await this.issueAuthResponse(user);
   }
 
   async verifyAdmin2FA(twoFactorToken: string, code: string) {
     const user = await this.twoFactor.verifyLogin(twoFactorToken, code);
-    return this.issueAuthResponse(user);
+    return await this.issueAuthResponse(user);
   }
 
   async getProfile(userId: number) {
@@ -351,6 +374,9 @@ export class AuthService {
   }
 
   async changePassword(userId: number, currentPassword: string, newPassword: string) {
+    if (!newPassword || newPassword.length < PASSWORD_MIN_LENGTH) {
+      throw new BadRequestException(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`);
+    }
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('User not found');
 
@@ -412,19 +438,36 @@ export class AuthService {
   }
 
   async refreshTokens(refreshToken: string) {
-    try {
-      const payload = this.jwtService.verify(refreshToken) as { sub: number };
-      const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-      if (!user) throw new UnauthorizedException('User not found');
-      if (user.isBanned) {
-        throw new ForbiddenException(
-          user.banReason?.trim() || 'Your account has been suspended. Contact support.',
-        );
-      }
-      return this.issueAuthResponse(user);
-    } catch {
+    if (!refreshToken?.trim()) {
       throw new UnauthorizedException('Invalid refresh token');
     }
+
+    const tokenHash = hashToken(refreshToken.trim());
+    const record = await this.prisma.refreshToken.findFirst({
+      where: {
+        tokenHash,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      include: { user: true },
+    });
+
+    if (!record?.user) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    if (record.user.isBanned) {
+      throw new ForbiddenException(
+        record.user.banReason?.trim() || 'Your account has been suspended. Contact support.',
+      );
+    }
+
+    await this.prisma.refreshToken.update({
+      where: { id: record.id },
+      data: { revokedAt: new Date() },
+    });
+
+    return await this.issueAuthResponse(record.user);
   }
 
   async requestAccountDeletion(userId: number, _reason?: string) {
@@ -438,6 +481,9 @@ export class AuthService {
   }
 
   async resetPassword(token: string, newPassword: string) {
+    if (!newPassword || newPassword.length < PASSWORD_MIN_LENGTH) {
+      throw new BadRequestException(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`);
+    }
     const tokenHash = hashToken(token);
     const record = await this.prisma.passwordResetToken.findFirst({
       where: { tokenHash, expiresAt: { gt: new Date() } },

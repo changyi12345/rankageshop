@@ -7,6 +7,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const uploadDir = join(process.cwd(), 'uploads');
@@ -26,6 +27,13 @@ async function bootstrap() {
   };
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.set('trust proxy', 1);
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
   app.enableCors({
     origin: (origin, callback) => {
       if (isAllowedOrigin(origin)) {

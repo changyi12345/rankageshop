@@ -38,6 +38,7 @@ model User {
   pushSubscriptions PushSubscription[]
   fcmTokens         FcmToken[]
   passwordResetTokens PasswordResetToken[]
+  refreshTokens       RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
   phoneOtps         PhoneOtp[]
   notifications     UserNotification[]
@@ -53,6 +54,18 @@ model PasswordResetToken {
   tokenHash String
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
 
   @@index([userId])
 }

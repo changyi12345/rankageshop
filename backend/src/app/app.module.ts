@@ -50,16 +50,7 @@ import { RateLimitMiddleware } from '../common/middleware/rate-limit.middleware'
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(RequestLoggerMiddleware).forRoutes('*');
-    consumer.apply(RateLimitMiddleware).forRoutes(
-      { path: 'auth/login', method: RequestMethod.POST },
-      { path: 'auth/register', method: RequestMethod.POST },
-      { path: 'auth/google', method: RequestMethod.POST },
-      { path: 'auth/forgot-password', method: RequestMethod.POST },
-      { path: 'auth/reset-password', method: RequestMethod.POST },
-      { path: 'admin/upload', method: RequestMethod.POST },
-      { path: 'uploads/payment-proof', method: RequestMethod.POST },
-      { path: 'uploads/payment-proof-base64', method: RequestMethod.POST },
-    );
+    consumer.apply(RateLimitMiddleware).forRoutes('*');
 
     consumer
       .apply(MaintenanceMiddleware)

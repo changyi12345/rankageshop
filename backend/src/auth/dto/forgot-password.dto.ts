@@ -1,4 +1,5 @@
 import { IsEmail, IsString, MinLength } from 'class-validator';
+import { PASSWORD_MIN_LENGTH } from './register.dto';
 
 export class ForgotPasswordDto {
   @IsEmail()
@@ -10,7 +11,7 @@ export class ResetPasswordDto {
   token: string;
 
   @IsString()
-  @MinLength(6)
+  @MinLength(PASSWORD_MIN_LENGTH)
   newPassword: string;
 }
 
