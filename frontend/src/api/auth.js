@@ -24,6 +24,22 @@ export async function login({ username, password }) {
     body: { username, password },
     requireAuth: false,
   });
+  if (data.requires2FA) {
+    return data;
+  }
+  if (data.access_token) {
+    setTokens(data.access_token, data.refresh_token ?? data.access_token);
+  }
+  if (data.user) data.user = normalizeUser(data.user);
+  return data;
+}
+
+export async function verifyAdmin2FA({ twoFactorToken, code }) {
+  const data = await apiRequest("/api/auth/admin-2fa/verify", {
+    method: "POST",
+    body: { twoFactorToken, code },
+    requireAuth: false,
+  });
   if (data.access_token) {
     setTokens(data.access_token, data.refresh_token ?? data.access_token);
   }

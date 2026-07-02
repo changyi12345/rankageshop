@@ -33,6 +33,7 @@ import UsersPage from "./pages/admin/UsersPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import PromosPage from "./pages/admin/PromosPage";
 import WalletTopupsPage from "./pages/admin/WalletTopupsPage";
+import WalletTransactionsPage from "./pages/admin/WalletTransactionsPage";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import ContentPage from "./pages/admin/ContentPage";
 import AdminNotificationsPage from "./pages/admin/NotificationsPage";
@@ -90,6 +91,7 @@ export default function App() {
         <Route path="users" element={<UsersPage />} />
         <Route path="promos" element={<PromosPage />} />
         <Route path="wallet-topups" element={<WalletTopupsPage />} />
+        <Route path="wallet-transactions" element={<WalletTransactionsPage />} />
         <Route path="content" element={<ContentPage />} />
         <Route path="notifications" element={<AdminNotificationsPage />} />
         <Route path="live-chat" element={<LiveChatPage />} />

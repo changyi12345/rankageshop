@@ -108,7 +108,6 @@ export default function OrderDetailModal({ orderId, onClose, onUpdated }) {
 
   const status = order?.status?.toLowerCase();
   const canProcess = ["pending", "payment_pending"].includes(status);
-  const canComplete = ["pending", "payment_pending", "processing"].includes(status);
   const canVerify = order?.paymentProof && ["pending", "payment_pending"].includes(status);
   const canRetry = ["pending", "payment_pending", "processing"].includes(status);
   const canReject = order?.paymentProof && ["pending", "payment_pending"].includes(status);
@@ -224,13 +223,6 @@ export default function OrderDetailModal({ orderId, onClose, onUpdated }) {
               icon={RefreshIcon}
               disabled={acting || !canProcess}
               onClick={() => updateStatus("PROCESSING")}
-            />
-            <ActionButton
-              label="Complete"
-              icon={VerifiedIcon}
-              disabled={acting || !canComplete}
-              onClick={() => updateStatus("COMPLETED")}
-              variant="success"
             />
             <ActionButton
               label="Verify payment"

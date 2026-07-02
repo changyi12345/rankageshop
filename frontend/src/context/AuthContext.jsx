@@ -62,6 +62,19 @@ export function AuthProvider({ children }) {
   const login = useCallback(
     async (username, password) => {
       const data = await authApi.login({ username, password });
+      if (data.requires2FA) {
+        setLoading(false);
+        return data;
+      }
+      applySession(data);
+      return data;
+    },
+    [applySession]
+  );
+
+  const verifyAdmin2FA = useCallback(
+    async (twoFactorToken, code) => {
+      const data = await authApi.verifyAdmin2FA({ twoFactorToken, code });
       applySession(data);
       return data;
     },
@@ -100,7 +113,7 @@ export function AuthProvider({ children }) {
   }, [clearSession]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, googleLogin, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, verifyAdmin2FA, register, googleLogin, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

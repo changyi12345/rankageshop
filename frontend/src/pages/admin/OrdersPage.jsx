@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
@@ -7,6 +8,7 @@ import AutorenewIcon from "@mui/icons-material/Autorenew";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import ReplayIcon from "@mui/icons-material/Replay";
 import { adminApi } from "../../api/admin";
 import { toast } from "react-toastify";
 import AdminPagination from "../../components/admin/AdminPagination";
@@ -16,6 +18,7 @@ const PAGE_SIZE_KEY = "admin-orders-page-size";
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All status" },
+  { value: "pending_group", label: "Pending (all)" },
   { value: "PENDING", label: "Pending" },
   { value: "PAYMENT_PENDING", label: "Payment pending" },
   { value: "PROCESSING", label: "Processing" },
@@ -33,12 +36,20 @@ function orderAmount(order) {
   return order.totalPrice ?? order.totalAmount ?? 0;
 }
 
+function resolveStatusFromUrl(raw) {
+  if (!raw) return "all";
+  const normalized = raw.toLowerCase();
+  if (normalized === "pending") return "pending_group";
+  return raw.toUpperCase();
+}
+
 export default function OrdersPage() {
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState(() => resolveStatusFromUrl(searchParams.get("status")));
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
@@ -66,6 +77,10 @@ export default function OrdersPage() {
     fetchOrders();
   }, [fetchOrders]);
 
+  useEffect(() => {
+    setStatusFilter(resolveStatusFromUrl(searchParams.get("status")));
+  }, [searchParams]);
+
   const paymentMethods = useMemo(() => {
     const methods = new Set(orders.map((o) => o.paymentMethod).filter(Boolean));
     return [...methods].sort();
@@ -84,7 +99,8 @@ export default function OrdersPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return orders.filter((order) => {
-      if (statusFilter !== "all" && order.status !== statusFilter) return false;
+      if (statusFilter === "pending_group" && !["PENDING", "PAYMENT_PENDING"].includes(order.status)) return false;
+      if (statusFilter !== "all" && statusFilter !== "pending_group" && order.status !== statusFilter) return false;
       if (paymentFilter !== "all" && order.paymentMethod !== paymentFilter) return false;
       if (!q) return true;
       const haystack = [
@@ -138,6 +154,16 @@ export default function OrdersPage() {
       fetchOrders(true);
     } catch {
       toast.error("Failed to update status");
+    }
+  };
+
+  const retryFulfillment = async (orderId) => {
+    try {
+      await adminApi.retryFulfillment(orderId);
+      toast.success("Fulfillment retried");
+      fetchOrders(true);
+    } catch (err) {
+      toast.error(err?.message || "Retry failed");
     }
   };
 
@@ -244,7 +270,7 @@ export default function OrdersPage() {
               {pageItems.map((order) => {
                 const status = order.status?.toLowerCase();
                 const canQuickProcess = ["pending", "payment_pending"].includes(status);
-                const canQuickComplete = ["pending", "payment_pending", "processing"].includes(status);
+                const canQuickRetry = ["pending", "payment_pending", "processing"].includes(status);
 
                 return (
                   <tr
@@ -309,13 +335,14 @@ export default function OrdersPage() {
                             Process
                           </button>
                         ) : null}
-                        {canQuickComplete ? (
+                        {canQuickRetry ? (
                           <button
                             type="button"
-                            onClick={() => updateStatus(order.id, "COMPLETED")}
-                            className="rounded-lg bg-blue-100 px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-200"
+                            onClick={() => retryFulfillment(order.id)}
+                            className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-200"
                           >
-                            Complete
+                            <ReplayIcon sx={{ fontSize: 14 }} />
+                            Retry
                           </button>
                         ) : null}
                       </div>

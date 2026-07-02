@@ -35,6 +35,7 @@ export const ADMIN_NAV_SECTIONS = [
         icon: AccountBalanceWalletIcon,
         badgeKey: "pendingWalletTopups",
       },
+      { path: "/admin/wallet-transactions", label: "Wallet Ledger", icon: HistoryIcon },
     ],
   },
   {

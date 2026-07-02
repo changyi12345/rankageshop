@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
@@ -30,12 +31,13 @@ function formatDateTime(value) {
 }
 
 export default function WalletTopupsPage() {
+  const [searchParams] = useSearchParams();
   const [topups, setTopups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [acting, setActing] = useState(false);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get("status")?.toUpperCase() || "all");
   const [page, setPage] = useState(1);
   const [selectedTopup, setSelectedTopup] = useState(null);
   const [rejectTargetId, setRejectTargetId] = useState(null);
@@ -62,6 +64,11 @@ export default function WalletTopupsPage() {
   useEffect(() => {
     fetchTopups();
   }, [fetchTopups]);
+
+  useEffect(() => {
+    const urlStatus = searchParams.get("status")?.toUpperCase();
+    if (urlStatus) setStatusFilter(urlStatus);
+  }, [searchParams]);
 
   const stats = useMemo(() => {
     const pending = topups.filter((t) => t.status === "PENDING");
