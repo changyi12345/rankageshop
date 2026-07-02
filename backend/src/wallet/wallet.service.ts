@@ -17,6 +17,12 @@ function safeMmk(value: unknown): number {
   return Number.isFinite(n) ? Math.round(n) : 0;
 }
 
+function mapTopUpStatus(status: string): string {
+  const normalized = status.toLowerCase();
+  if (normalized === 'completed') return 'approved';
+  return normalized;
+}
+
 @Injectable()
 export class WalletService {
   constructor(
@@ -99,7 +105,7 @@ export class WalletService {
     return rows.map((t) => ({
       id: t.id,
       amount: toMmkInt(Number(t.amount)),
-      status: t.status.toLowerCase(),
+      status: mapTopUpStatus(t.status),
       payment_method: this.paymentMethodFromDescription(t.description),
       payment_method_name: this.paymentMethodFromDescription(t.description),
       created_at: t.createdAt.toISOString(),

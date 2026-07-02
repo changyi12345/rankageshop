@@ -8,6 +8,7 @@ import { formatPrice } from "../utils/format";
 const STATUS_LABELS = {
   pending: { text: "Pending", className: "wallet-status wallet-status--pending" },
   approved: { text: "Approved", className: "wallet-status wallet-status--approved" },
+  completed: { text: "Approved", className: "wallet-status wallet-status--approved" },
   rejected: { text: "Rejected", className: "wallet-status wallet-status--rejected" },
 };
 
@@ -46,10 +47,12 @@ function WalletHistoryContent() {
 
   useEffect(() => {
     loadRows();
+    const timer = window.setInterval(loadRows, 30_000);
+    return () => window.clearInterval(timer);
   }, []);
 
   const totalApproved = rows
-    .filter((row) => row.status === "approved")
+    .filter((row) => row.status === "approved" || row.status === "completed")
     .reduce((sum, row) => sum + Number(row.amount || 0), 0);
 
   return (

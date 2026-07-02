@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchWalletSummary } from "../api/wallet";
 import { useAuth } from "../context/AuthContext";
 
+const POLL_MS = 30_000;
+
 export function useWallet() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -16,6 +18,7 @@ export function useWallet() {
     try {
       const data = await fetchWalletSummary();
       setSummary(data);
+      await refreshUser();
       return data;
     } catch {
       setSummary(null);
@@ -23,14 +26,30 @@ export function useWallet() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, refreshUser]);
 
   useEffect(() => {
+    if (!user) {
+      setSummary(null);
+      return undefined;
+    }
+
     refresh();
-  }, [refresh]);
+
+    const timer = window.setInterval(refresh, POLL_MS);
+    const onFocus = () => refresh();
+
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [user, refresh]);
 
   const balance =
     summary?.wallet_balance ??
+    summary?.balance ??
     (user?.wallet_balance != null ? Number(user.wallet_balance) : 0);
 
   return {
