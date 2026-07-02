@@ -1,5 +1,12 @@
 let gsiPromise = null;
 let initializedClientId = null;
+let initializedContext = null;
+let credentialHandler = null;
+let configPromise = null;
+
+export function setGoogleCredentialHandler(handler) {
+  credentialHandler = typeof handler === "function" ? handler : null;
+}
 
 export function loadGoogleIdentityScript() {
   if (typeof window === "undefined") {
@@ -30,16 +37,24 @@ export function loadGoogleIdentityScript() {
   return gsiPromise;
 }
 
+export function prefetchGoogleIdentity() {
+  loadGoogleIdentityScript().catch(() => {});
+}
+
 /** Initialize GIS once per client ID (avoids GSI_LOGGER duplicate-init warnings). */
-export function initGoogleSignIn({ clientId, callback, context = "signin" }) {
+export function initGoogleSignIn({ clientId, context = "signin" }) {
   if (!clientId || !window.google?.accounts?.id) {
     throw new Error("Google Sign-In is not ready");
   }
-  if (initializedClientId !== clientId) {
+
+  const needsInit =
+    initializedClientId !== clientId || initializedContext !== context;
+
+  if (needsInit) {
     window.google.accounts.id.initialize({
       client_id: clientId,
       callback: (response) => {
-        if (response?.credential) callback?.(response.credential);
+        if (response?.credential) credentialHandler?.(response.credential);
       },
       context,
       ux_mode: "popup",
@@ -47,5 +62,30 @@ export function initGoogleSignIn({ clientId, callback, context = "signin" }) {
       itp_support: true,
     });
     initializedClientId = clientId;
+    initializedContext = context;
   }
+}
+
+export function renderGoogleButton(container, { text = "continue_with", width = 360 } = {}) {
+  if (!container || !window.google?.accounts?.id) return;
+  container.innerHTML = "";
+  window.google.accounts.id.renderButton(container, {
+    type: "standard",
+    theme: "filled_black",
+    size: "large",
+    text,
+    shape: "pill",
+    logo_alignment: "left",
+    width: Math.min(Math.max(width, 280), 400),
+  });
+}
+
+export function fetchGoogleAuthConfigCached(fetcher) {
+  if (!configPromise) {
+    configPromise = fetcher().catch((err) => {
+      configPromise = null;
+      throw err;
+    });
+  }
+  return configPromise;
 }

@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchGoogleAuthConfig } from "../../api/auth";
-import { initGoogleSignIn, loadGoogleIdentityScript } from "../../utils/googleIdentity";
+import {
+  fetchGoogleAuthConfigCached,
+  initGoogleSignIn,
+  loadGoogleIdentityScript,
+  renderGoogleButton,
+  setGoogleCredentialHandler,
+} from "../../utils/googleIdentity";
 
-export default function GoogleSignIn({ onCredential, disabled = false, referralCode }) {
+export default function GoogleSignIn({ onCredential, busy = false, referralCode }) {
   const buttonRef = useRef(null);
   const onCredentialRef = useRef(onCredential);
+  const buttonRenderedRef = useRef(false);
   const [config, setConfig] = useState(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
@@ -14,8 +21,13 @@ export default function GoogleSignIn({ onCredential, disabled = false, referralC
   }, [onCredential]);
 
   useEffect(() => {
+    setGoogleCredentialHandler((credential) => onCredentialRef.current?.(credential));
+    return () => setGoogleCredentialHandler(null);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
-    fetchGoogleAuthConfig()
+    fetchGoogleAuthConfigCached(fetchGoogleAuthConfig)
       .then((data) => {
         if (!cancelled) setConfig(data);
       })
@@ -28,35 +40,33 @@ export default function GoogleSignIn({ onCredential, disabled = false, referralC
   }, []);
 
   useEffect(() => {
-    if (!config?.enabled || !config.clientId || disabled) {
-      setReady(false);
+    if (!config?.enabled || !config.clientId) {
       return undefined;
     }
 
     let cancelled = false;
+    buttonRenderedRef.current = false;
 
-    const init = async () => {
+    const mountButton = async () => {
       try {
         await loadGoogleIdentityScript();
         if (cancelled || !buttonRef.current) return;
 
         initGoogleSignIn({
           clientId: config.clientId,
-          callback: (credential) => onCredentialRef.current?.(credential),
           context: referralCode ? "signup" : "signin",
         });
 
-        buttonRef.current.innerHTML = "";
-        const width = Math.min(Math.max(buttonRef.current.offsetWidth || 360, 280), 400);
-        window.google.accounts.id.renderButton(buttonRef.current, {
-          type: "standard",
-          theme: "filled_black",
-          size: "large",
-          text: referralCode ? "signup_with" : "continue_with",
-          shape: "pill",
-          logo_alignment: "left",
-          width,
-        });
+        const container = buttonRef.current;
+        const width = container.parentElement?.offsetWidth || container.offsetWidth || 360;
+
+        if (!buttonRenderedRef.current) {
+          renderGoogleButton(container, {
+            text: referralCode ? "signup_with" : "continue_with",
+            width,
+          });
+          buttonRenderedRef.current = true;
+        }
 
         if (!cancelled) {
           setReady(true);
@@ -70,25 +80,48 @@ export default function GoogleSignIn({ onCredential, disabled = false, referralC
       }
     };
 
-    init();
+    mountButton();
 
     return () => {
       cancelled = true;
     };
-  }, [config, disabled, referralCode]);
+  }, [config, referralCode]);
+
+  if (config === null) {
+    return (
+      <div className="google-signin" aria-hidden>
+        <div className="google-signin__placeholder google-signin__placeholder--visible">
+          <span className="google-signin__placeholder-spinner" aria-hidden />
+          Loading Google…
+        </div>
+      </div>
+    );
+  }
 
   if (!config?.enabled) return null;
 
   return (
-    <div className="google-signin">
+    <div className={`google-signin ${busy ? "google-signin--busy" : ""}`}>
       <div
         ref={buttonRef}
         className={`google-signin__button ${ready ? "google-signin__button--ready" : ""}`}
         aria-hidden={!ready}
       />
-      {!ready && !error ? (
-        <div className="google-signin__placeholder" aria-hidden>
-          Loading Google…
+      <div
+        className={`google-signin__placeholder ${ready ? "" : "google-signin__placeholder--visible"}`}
+        aria-hidden={ready}
+      >
+        {!ready && !error ? (
+          <>
+            <span className="google-signin__placeholder-spinner" aria-hidden />
+            Loading Google…
+          </>
+        ) : null}
+      </div>
+      {busy ? (
+        <div className="google-signin__busy" aria-live="polite">
+          <span className="google-signin__placeholder-spinner" aria-hidden />
+          Signing in with Google…
         </div>
       ) : null}
       {error ? <p className="auth-field__hint text-center">{error}</p> : null}

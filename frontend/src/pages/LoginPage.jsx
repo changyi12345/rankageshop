@@ -25,6 +25,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
   const [resendMsg, setResendMsg] = useState("");
   const [resending, setResending] = useState(false);
   const [showResend, setShowResend] = useState(false);
@@ -41,15 +42,14 @@ export default function LoginPage() {
       setError("");
       setResendMsg("");
       setShowResend(false);
-      setLoading(true);
+      setGoogleBusy(true);
       try {
         await googleLogin(idToken);
         const next = isSafeReturnPath(redirectTo) ? redirectTo : "/";
         navigate(next, { replace: true });
       } catch (err) {
         setError(err.message || "Google sign-in failed.");
-      } finally {
-        setLoading(false);
+        setGoogleBusy(false);
       }
     },
     [googleLogin, navigate, redirectTo],
@@ -91,7 +91,7 @@ export default function LoginPage() {
     }
   };
 
-  if (authLoading || user) {
+  if (authLoading) {
     return <AuthLoading />;
   }
 
@@ -120,7 +120,7 @@ export default function LoginPage() {
         </p>
       ) : null}
 
-      <GoogleSignIn onCredential={onGoogleCredential} disabled={loading} />
+      <GoogleSignIn onCredential={onGoogleCredential} busy={googleBusy} />
       <AuthDivider />
 
       <form onSubmit={onSubmit} className="auth-form" noValidate>

@@ -22,6 +22,7 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
   const [success, setSuccess] = useState(null);
 
   useEffect(() => {
@@ -57,20 +58,19 @@ export default function RegisterPage() {
   const onGoogleCredential = useCallback(
     async (idToken) => {
       setError("");
-      setLoading(true);
+      setGoogleBusy(true);
       try {
         await googleLogin(idToken, referralCode || undefined);
         navigate("/", { replace: true });
       } catch (err) {
         setError(err.message || "Google sign-up failed.");
-      } finally {
-        setLoading(false);
+        setGoogleBusy(false);
       }
     },
     [googleLogin, navigate, referralCode],
   );
 
-  if (authLoading || user) {
+  if (authLoading) {
     return <AuthLoading />;
   }
 
@@ -118,7 +118,7 @@ export default function RegisterPage() {
     >
       <GoogleSignIn
         onCredential={onGoogleCredential}
-        disabled={loading}
+        busy={googleBusy}
         referralCode={referralCode || undefined}
       />
       <AuthDivider label="or register with email" />

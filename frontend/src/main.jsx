@@ -7,6 +7,9 @@ import AppToaster from "./components/AppToaster";
 import { AuthProvider } from "./context/AuthContext";
 import { NotificationsProvider } from "./context/NotificationsContext";
 import "./index.css";
+import { prefetchGoogleIdentity } from "./utils/googleIdentity";
+
+prefetchGoogleIdentity();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
