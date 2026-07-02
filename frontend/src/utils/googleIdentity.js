@@ -81,6 +81,39 @@ export function renderGoogleButton(container, { text = "continue_with", width = 
   });
 }
 
+export function triggerGoogleSignInFlow(container) {
+  if (!container) return false;
+
+  const candidates = [
+    container.querySelector('div[role="button"]'),
+    container.querySelector('[tabindex="0"]'),
+    container.querySelector("iframe"),
+    container.firstElementChild,
+  ].filter(Boolean);
+
+  for (const node of candidates) {
+    try {
+      node.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true, view: window }),
+      );
+      if (typeof node.click === "function") {
+        node.click();
+      }
+      return true;
+    } catch {
+      // try next candidate
+    }
+  }
+
+  return false;
+}
+
+export function promptGoogleSignIn() {
+  if (!window.google?.accounts?.id?.prompt) return false;
+  window.google.accounts.id.prompt();
+  return true;
+}
+
 export function fetchGoogleAuthConfigCached(fetcher) {
   if (!configPromise) {
     configPromise = fetcher().catch((err) => {

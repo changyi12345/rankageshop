@@ -1957,15 +1957,33 @@
   }
 
   .google-signin {
-    @apply relative h-11 w-full;
+    @apply relative h-12 w-full;
   }
 
   .google-signin__face {
-    @apply pointer-events-none absolute inset-0 z-[1] flex h-11 w-full items-center justify-center gap-3 rounded-full border border-white/10 bg-[#13151a] px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)];
+    @apply flex h-12 w-full items-center justify-center gap-3 rounded-full border border-white/10 bg-[#13151a] px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)];
+  }
+
+  .google-signin__face--interactive {
+    @apply relative z-[2] cursor-pointer transition-[transform,opacity,border-color] duration-200 ease-out;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .google-signin__face--interactive:hover:not(:disabled) {
+    @apply border-white/20 bg-[#171a21];
+  }
+
+  .google-signin__face--interactive:active:not(:disabled) {
+    @apply scale-[0.99];
+  }
+
+  .google-signin__face--interactive:disabled {
+    @apply cursor-not-allowed opacity-60;
   }
 
   .google-signin__face--loading {
-    @apply z-[2] text-slate-500;
+    @apply pointer-events-none absolute inset-0 z-[3] text-slate-500;
   }
 
   .google-signin--ready .google-signin__face--loading {
@@ -1976,21 +1994,17 @@
     @apply h-5 w-5 shrink-0;
   }
 
-  .google-signin__hit {
-    @apply absolute inset-0 z-[3] h-11 w-full overflow-hidden rounded-full opacity-0;
+  .google-signin__sandbox {
+    @apply pointer-events-none fixed overflow-hidden;
+    top: -1000px;
+    left: 0;
+    width: 320px;
+    height: 48px;
+    opacity: 1;
   }
 
-  .google-signin__hit > div,
-  .google-signin__hit iframe {
-    @apply !m-0 !block !h-11 !w-full !max-w-none !bg-transparent;
-  }
-
-  .google-signin--busy .google-signin__hit {
-    @apply pointer-events-none;
-  }
-
-  .google-signin--busy .google-signin__face {
-    @apply opacity-50;
+  .google-signin--busy .google-signin__face--interactive {
+    @apply pointer-events-none opacity-50;
   }
 
   .google-signin__placeholder-spinner {

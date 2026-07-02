@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchGoogleAuthConfig } from "../../api/auth";
 import { IconGoogle } from "./AuthIcons";
 import {
   fetchGoogleAuthConfigCached,
   initGoogleSignIn,
   loadGoogleIdentityScript,
+  promptGoogleSignIn,
   renderGoogleButton,
   setGoogleCredentialHandler,
+  triggerGoogleSignInFlow,
 } from "../../utils/googleIdentity";
 
 function clampButtonWidth(width) {
@@ -15,8 +17,9 @@ function clampButtonWidth(width) {
 
 export default function GoogleSignIn({ onCredential, busy = false, referralCode }) {
   const hostRef = useRef(null);
-  const buttonRef = useRef(null);
+  const sandboxRef = useRef(null);
   const onCredentialRef = useRef(onCredential);
+  const activatingRef = useRef(false);
   const lastWidthRef = useRef(0);
   const [config, setConfig] = useState(null);
   const [ready, setReady] = useState(false);
@@ -58,7 +61,7 @@ export default function GoogleSignIn({ onCredential, busy = false, referralCode 
     const mountButton = async (width) => {
       try {
         await loadGoogleIdentityScript();
-        if (cancelled || !buttonRef.current || !hostRef.current) return;
+        if (cancelled || !sandboxRef.current || !hostRef.current) return;
 
         initGoogleSignIn({
           clientId: config.clientId,
@@ -67,7 +70,7 @@ export default function GoogleSignIn({ onCredential, busy = false, referralCode 
 
         const nextWidth = clampButtonWidth(width);
         if (lastWidthRef.current !== nextWidth) {
-          renderGoogleButton(buttonRef.current, {
+          renderGoogleButton(sandboxRef.current, {
             text: referralCode ? "signup_with" : "continue_with",
             width: nextWidth,
           });
@@ -107,6 +110,32 @@ export default function GoogleSignIn({ onCredential, busy = false, referralCode 
     };
   }, [config, referralCode]);
 
+  const activateGoogleSignIn = useCallback(async () => {
+    if (!ready || busy || activatingRef.current || !config?.clientId) return;
+
+    activatingRef.current = true;
+    setError("");
+
+    try {
+      await loadGoogleIdentityScript();
+      initGoogleSignIn({
+        clientId: config.clientId,
+        context: referralCode ? "signup" : "signin",
+      });
+
+      const triggered = triggerGoogleSignInFlow(sandboxRef.current);
+      if (!triggered) {
+        promptGoogleSignIn();
+      }
+    } catch (err) {
+      setError(err?.message || "Google Sign-In unavailable");
+    } finally {
+      window.setTimeout(() => {
+        activatingRef.current = false;
+      }, 800);
+    }
+  }, [busy, config, ready, referralCode]);
+
   if (config === null) {
     return (
       <div className="google-signin" aria-hidden>
@@ -125,16 +154,22 @@ export default function GoogleSignIn({ onCredential, busy = false, referralCode 
       ref={hostRef}
       className={`google-signin ${busy ? "google-signin--busy" : ""} ${ready ? "google-signin--ready" : ""}`}
     >
-      <div className="google-signin__face" aria-hidden={!ready}>
+      <button
+        type="button"
+        className="google-signin__face google-signin__face--interactive"
+        disabled={!ready || busy}
+        aria-label={label}
+        onClick={activateGoogleSignIn}
+      >
         <IconGoogle className="google-signin__icon" />
         <span>{label}</span>
-      </div>
+      </button>
 
       <div
-        ref={buttonRef}
-        className="google-signin__hit"
-        aria-label={label}
-        role="button"
+        ref={sandboxRef}
+        className="google-signin__sandbox"
+        data-google-signin-sandbox
+        aria-hidden="true"
       />
 
       {!ready && !error ? (
