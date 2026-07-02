@@ -60,7 +60,7 @@ export default function HeaderAccountMenu({ onNavigate }) {
 
   const handleLogout = () => {
     close();
-    logout();
+    if (!logout()) return;
     navigate("/");
   };
 

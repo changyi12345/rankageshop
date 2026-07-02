@@ -49,7 +49,7 @@ export default function MobileOffcanvas({ open, onClose }) {
 
   const handleLogout = () => {
     onClose();
-    logout();
+    if (!logout()) return;
     navigate("/");
   };
 

@@ -63,7 +63,7 @@ function ProfileContent() {
   };
 
   const handleLogout = () => {
-    logout();
+    if (!logout()) return;
     navigate("/");
     toast.success("You have been logged out.");
   };

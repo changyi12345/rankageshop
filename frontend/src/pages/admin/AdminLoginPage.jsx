@@ -48,7 +48,7 @@ export default function AdminLoginPage() {
         return;
       }
       if (!isAdminRole(loggedInUser?.role)) {
-        logout();
+        logout({ skipConfirm: true });
         setError("This account does not have admin access. Use the store sign-in page instead.");
         return;
       }

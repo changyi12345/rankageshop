@@ -67,7 +67,7 @@ export default function AdminLayout() {
 
   const handleLogout = () => {
     closeMobileSidebar();
-    logout();
+    if (!logout()) return;
     navigate("/");
   };
 

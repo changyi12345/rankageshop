@@ -4,16 +4,29 @@ import { normalizeUser } from "../utils/normalizeUser";
 
 const AuthContext = createContext(null);
 
+const LOGOUT_CONFIRM_MESSAGE = "Are you sure you want to log out?";
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const logout = useCallback(() => {
+  const clearSession = useCallback(() => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     setUser(null);
     setLoading(false);
   }, []);
+
+  const logout = useCallback(
+    ({ skipConfirm = false } = {}) => {
+      if (!skipConfirm && !window.confirm(LOGOUT_CONFIRM_MESSAGE)) {
+        return false;
+      }
+      clearSession();
+      return true;
+    },
+    [clearSession],
+  );
 
   const applySession = useCallback((data) => {
     if (data.access_token) {
@@ -36,15 +49,15 @@ export function AuthProvider({ children }) {
     authApi
       .fetchMe()
       .then((me) => setUser(normalizeUser(me)))
-      .catch(() => logout())
+      .catch(() => clearSession())
       .finally(() => setLoading(false));
-  }, [logout]);
+  }, [clearSession]);
 
   useEffect(() => {
-    const onSessionInvalid = () => logout();
+    const onSessionInvalid = () => clearSession();
     window.addEventListener("auth:session-invalid", onSessionInvalid);
     return () => window.removeEventListener("auth:session-invalid", onSessionInvalid);
-  }, [logout]);
+  }, [clearSession]);
 
   const login = useCallback(
     async (username, password) => {
@@ -81,10 +94,10 @@ export function AuthProvider({ children }) {
       setUser(normalizeUser(me));
       return me;
     } catch {
-      logout();
+      clearSession();
       return null;
     }
-  }, [logout]);
+  }, [clearSession]);
 
   return (
     <AuthContext.Provider value={{ user, loading, login, register, googleLogin, logout, refreshUser }}>
