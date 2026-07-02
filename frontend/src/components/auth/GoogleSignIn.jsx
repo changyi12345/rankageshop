@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchGoogleAuthConfig } from "../../api/auth";
-import { loadGoogleIdentityScript } from "../../utils/googleIdentity";
+import { initGoogleSignIn, loadGoogleIdentityScript } from "../../utils/googleIdentity";
 
 export default function GoogleSignIn({ onCredential, disabled = false, referralCode }) {
   const buttonRef = useRef(null);
+  const onCredentialRef = useRef(onCredential);
   const [config, setConfig] = useState(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    onCredentialRef.current = onCredential;
+  }, [onCredential]);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,17 +40,10 @@ export default function GoogleSignIn({ onCredential, disabled = false, referralC
         await loadGoogleIdentityScript();
         if (cancelled || !buttonRef.current) return;
 
-        window.google.accounts.id.initialize({
-          client_id: config.clientId,
-          callback: (response) => {
-            if (response?.credential) {
-              onCredential?.(response.credential);
-            }
-          },
+        initGoogleSignIn({
+          clientId: config.clientId,
+          callback: (credential) => onCredentialRef.current?.(credential),
           context: referralCode ? "signup" : "signin",
-          ux_mode: "popup",
-          auto_select: false,
-          itp_support: true,
         });
 
         buttonRef.current.innerHTML = "";
@@ -77,7 +75,7 @@ export default function GoogleSignIn({ onCredential, disabled = false, referralC
     return () => {
       cancelled = true;
     };
-  }, [config, disabled, onCredential, referralCode]);
+  }, [config, disabled, referralCode]);
 
   if (!config?.enabled) return null;
 

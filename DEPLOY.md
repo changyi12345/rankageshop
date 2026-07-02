@@ -14,7 +14,7 @@ VPS (Ubuntu 22.04/24.04) + Nginx + PM2 + PostgreSQL အတွက် step-by-step
 |-----|----------|
 | VPS | 1 vCPU, 2GB RAM လုံလောက် (Ubuntu 22.04+) |
 | Node.js | v20 LTS |
-| PostgreSQL | Server ပေါ်တိုင် သို့မဟုတ် Supabase |
+| PostgreSQL | **VPS ပေါ်တိုင်** (localhost:5432) |
 | Domain DNS | A record များ server IP ကို ညွှန်ပါ |
 
 **DNS records:**
@@ -41,11 +41,13 @@ sudo apt install -y nodejs
 # PM2 (process manager)
 sudo npm install -g pm2
 
-# PostgreSQL (server ပေါ်တိုင် သုံးမယ်ဆိုရင်)
+# PostgreSQL — VPS ပေါ်တိုင် (localhost သာ)
 sudo apt install -y postgresql postgresql-contrib
+sudo systemctl enable postgresql
+sudo systemctl start postgresql
 ```
 
-### PostgreSQL (local) ဖန်တီးခြင်း
+### PostgreSQL database + user ဖန်တီးခြင်း
 
 ```bash
 sudo -u postgres psql
@@ -55,10 +57,19 @@ sudo -u postgres psql
 CREATE USER rankage WITH PASSWORD 'YOUR_STRONG_DB_PASSWORD';
 CREATE DATABASE rankageshop OWNER rankage;
 GRANT ALL PRIVILEGES ON DATABASE rankageshop TO rankage;
+\c rankageshop
+GRANT ALL ON SCHEMA public TO rankage;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO rankage;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO rankage;
 \q
 ```
 
-**Supabase သုံးမယ်ဆိုရင်:** `.env.example` ထဲက pooler URL ကို copy လုပ်ပါ (`DATABASE_URL` + `DIRECT_URL`)။
+**စစ်ဆေးခြင်း:**
+```bash
+psql "postgresql://rankage:YOUR_STRONG_DB_PASSWORD@localhost:5432/rankageshop" -c "SELECT 1;"
+```
+
+**လုံခြုံရေး:** PostgreSQL က `localhost` မှာပဲ listen လုပ်ပါ (`/etc/postgresql/*/main/postgresql.conf` → `listen_addresses = 'localhost'`). ပြင်ပက port 5432 ကို firewall မဖွင့်ပါနဲ့။
 
 ---
 
@@ -70,7 +81,7 @@ sudo chown $USER:$USER /var/www/rankageshop
 cd /var/www/rankageshop
 
 # Git ဖြင့် (အကြံပြု)
-git clone YOUR_REPO_URL .
+git clone https://github.com/changyi12345/rankageshop.git .
 # သို့မဟုတ် local က zip/scp ဖြင့် upload လုပ်ပါ
 ```
 
@@ -95,6 +106,7 @@ nano .env
 NODE_ENV=production
 PORT=4000
 
+# VPS local PostgreSQL — DATABASE_URL နဲ့ DIRECT_URL တူတူ ထားပါ (pooler မလို)
 DATABASE_URL=postgresql://rankage:YOUR_STRONG_DB_PASSWORD@localhost:5432/rankageshop
 DIRECT_URL=postgresql://rankage:YOUR_STRONG_DB_PASSWORD@localhost:5432/rankageshop
 
@@ -272,8 +284,10 @@ sudo cp -r dist/* /var/www/rankageshop-web/
 | 502 Bad Gateway | `pm2 status` — backend run နေမနေ |
 | API 401 | JWT_SECRET ပြောင်းပြီး users re-login လုပ်ရမယ် |
 | Uploads ပျောက်သွား | `backend/uploads` ကို redeploy မဖျက်အောင် backup ထား |
-| DB connection fail | `DATABASE_URL` / firewall / Supabase pooler port စစ် |
-| Google login မရ | `GOOGLE_CLIENT_ID` + Google Console authorized origins |
+| DB connection fail | `psql` connection test / password / `GRANT ON SCHEMA public` (PG 15+) |
+| Google login မရ | `GOOGLE_CLIENT_ID` + Google Console authorized origins (`https://rankage.shop`, `https://www.rankage.shop`); Nginx `Cross-Origin-Opener-Policy: same-origin-allow-popups` |
+| Google COOP / postMessage warning | `deploy/nginx/rankage.shop.conf` ထဲ COOP header ပါပြီး — nginx reload + frontend rebuild |
+| SMTP from VPS | cPanel `rankage.shop:465` က ပြင်ပ VPS ကနေ မရ — Brevo/SendGrid relay သုံး |
 
 **Logs:**
 ```bash

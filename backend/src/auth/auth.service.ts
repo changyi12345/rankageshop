@@ -370,7 +370,10 @@ export class AuthService {
   }
 
   async forgotPassword(email: string) {
-    const user = await this.prisma.user.findFirst({ where: { email } });
+    const normalized = email.trim().toLowerCase();
+    const user = await this.prisma.user.findFirst({
+      where: { email: { equals: normalized, mode: 'insensitive' } },
+    });
     if (!user) {
       return { message: 'If that email exists, a reset link has been sent.' };
     }

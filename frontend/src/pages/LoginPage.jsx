@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { resendVerification } from "../api/auth";
 import { useAuth } from "../context/AuthContext";
@@ -36,21 +36,24 @@ export default function LoginPage() {
     }
   }, [authLoading, user, navigate, redirectTo]);
 
-  const onGoogleCredential = async (idToken) => {
-    setError("");
-    setResendMsg("");
-    setShowResend(false);
-    setLoading(true);
-    try {
-      await googleLogin(idToken);
-      const next = isSafeReturnPath(redirectTo) ? redirectTo : "/";
-      navigate(next, { replace: true });
-    } catch (err) {
-      setError(err.message || "Google sign-in failed.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const onGoogleCredential = useCallback(
+    async (idToken) => {
+      setError("");
+      setResendMsg("");
+      setShowResend(false);
+      setLoading(true);
+      try {
+        await googleLogin(idToken);
+        const next = isSafeReturnPath(redirectTo) ? redirectTo : "/";
+        navigate(next, { replace: true });
+      } catch (err) {
+        setError(err.message || "Google sign-in failed.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [googleLogin, navigate, redirectTo],
+  );
 
   const onSubmit = async (e) => {
     e.preventDefault();

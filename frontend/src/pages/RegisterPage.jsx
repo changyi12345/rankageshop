@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { PRIVACY_PATH } from "../config/siteNav";
 import { useAuth } from "../context/AuthContext";
@@ -54,18 +54,21 @@ export default function RegisterPage() {
     }
   };
 
-  const onGoogleCredential = async (idToken) => {
-    setError("");
-    setLoading(true);
-    try {
-      await googleLogin(idToken, referralCode || undefined);
-      navigate("/", { replace: true });
-    } catch (err) {
-      setError(err.message || "Google sign-up failed.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const onGoogleCredential = useCallback(
+    async (idToken) => {
+      setError("");
+      setLoading(true);
+      try {
+        await googleLogin(idToken, referralCode || undefined);
+        navigate("/", { replace: true });
+      } catch (err) {
+        setError(err.message || "Google sign-up failed.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [googleLogin, navigate, referralCode],
+  );
 
   if (authLoading || user) {
     return <AuthLoading />;

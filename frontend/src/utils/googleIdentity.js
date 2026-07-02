@@ -1,4 +1,5 @@
 let gsiPromise = null;
+let initializedClientId = null;
 
 export function loadGoogleIdentityScript() {
   if (typeof window === "undefined") {
@@ -27,4 +28,24 @@ export function loadGoogleIdentityScript() {
     });
   }
   return gsiPromise;
+}
+
+/** Initialize GIS once per client ID (avoids GSI_LOGGER duplicate-init warnings). */
+export function initGoogleSignIn({ clientId, callback, context = "signin" }) {
+  if (!clientId || !window.google?.accounts?.id) {
+    throw new Error("Google Sign-In is not ready");
+  }
+  if (initializedClientId !== clientId) {
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: (response) => {
+        if (response?.credential) callback?.(response.credential);
+      },
+      context,
+      ux_mode: "popup",
+      auto_select: false,
+      itp_support: true,
+    });
+    initializedClientId = clientId;
+  }
 }
