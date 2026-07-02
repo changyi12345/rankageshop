@@ -1065,6 +1065,14 @@
     @apply absolute right-0 top-[calc(100%+0.5rem)] z-[70] w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-surface-border bg-[#15171c] shadow-card;
   }
 
+  .notification-panel--fixed {
+    @apply right-auto top-auto w-auto max-w-none shadow-2xl;
+  }
+
+  .notification-panel__backdrop {
+    @apply fixed inset-0 z-[75] border-0 bg-black/45 p-0;
+  }
+
   .notification-panel__header {
     @apply flex items-center justify-between gap-3 border-b border-surface-border px-4 py-3;
   }
