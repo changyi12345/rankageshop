@@ -1957,27 +1957,40 @@
   }
 
   .google-signin {
-    @apply relative w-full min-h-[44px];
+    @apply relative h-11 w-full;
   }
 
-  .google-signin__button {
-    @apply flex min-h-[44px] w-full justify-center opacity-0 transition-opacity duration-500 ease-smooth;
+  .google-signin__face {
+    @apply pointer-events-none absolute inset-0 z-[1] flex h-11 w-full items-center justify-center gap-3 rounded-full border border-white/10 bg-[#13151a] px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)];
   }
 
-  .google-signin__button--ready {
-    @apply opacity-100;
+  .google-signin__face--loading {
+    @apply z-[2] text-slate-500;
   }
 
-  .google-signin--busy .google-signin__button {
-    @apply pointer-events-none opacity-40;
+  .google-signin--ready .google-signin__face--loading {
+    @apply hidden;
   }
 
-  .google-signin__placeholder {
-    @apply pointer-events-none absolute inset-0 flex items-center justify-center gap-2 rounded-full border border-surface-border bg-surface-raised/80 text-sm text-slate-500 opacity-0 transition-opacity duration-500 ease-smooth;
+  .google-signin__icon {
+    @apply h-5 w-5 shrink-0;
   }
 
-  .google-signin__placeholder--visible {
-    @apply opacity-100;
+  .google-signin__hit {
+    @apply absolute inset-0 z-[3] h-11 w-full overflow-hidden rounded-full opacity-0;
+  }
+
+  .google-signin__hit > div,
+  .google-signin__hit iframe {
+    @apply !m-0 !block !h-11 !w-full !max-w-none !bg-transparent;
+  }
+
+  .google-signin--busy .google-signin__hit {
+    @apply pointer-events-none;
+  }
+
+  .google-signin--busy .google-signin__face {
+    @apply opacity-50;
   }
 
   .google-signin__placeholder-spinner {
@@ -1985,7 +1998,7 @@
   }
 
   .google-signin__busy {
-    @apply pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-full border border-accent/30 bg-surface/90 text-sm font-medium text-white backdrop-blur-sm;
+    @apply pointer-events-none absolute inset-0 z-[4] flex items-center justify-center gap-2 rounded-full border border-accent/30 bg-surface/90 text-sm font-medium text-white backdrop-blur-sm;
   }
 
   .auth-form__legal {

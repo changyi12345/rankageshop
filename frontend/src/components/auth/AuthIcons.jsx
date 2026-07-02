@@ -39,6 +39,17 @@ export function IconUser(props) {
   );
 }
 
+export function IconGoogle(props) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden {...props}>
+      <path fill="#EA4335" d="M12 10.2v3.84h5.34c-.23 1.18-.94 2.18-2 2.85l3.24 2.52c1.9-1.75 2.99-4.33 2.99-7.41 0-.71-.06-1.39-.18-2.04H12z" />
+      <path fill="#34A853" d="M6.09 14.32 5.45 14.9 3.71 16.45A11.96 11.96 0 0 0 12 22c3.24 0 5.96-1.07 7.95-2.9l-3.24-2.52c-.9.6-2.05.96-3.71.96-2.84 0-5.25-1.92-6.11-4.5z" />
+      <path fill="#4A90E2" d="M3.71 7.55A11.96 11.96 0 0 0 2 12c0 1.97.47 3.83 1.31 5.45l3.38-2.62C6.18 14.1 6 13.07 6 12s.18-2.1.69-3.28L3.71 7.55z" />
+      <path fill="#FBBC05" d="M12 6c1.66 0 3.14.57 4.31 1.68l3.23-3.23C17.95 2.79 15.24 2 12 2 7.8 2 4.09 4.27 2.31 7.55l3.38 2.62C6.75 7.92 9.16 6 12 6z" />
+    </svg>
+  );
+}
+
 export function IconBolt(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden {...props}>

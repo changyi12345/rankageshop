@@ -59,6 +59,7 @@ export function initGoogleSignIn({ clientId, context = "signin" }) {
       context,
       ux_mode: "popup",
       auto_select: false,
+      cancel_on_tap_outside: true,
       itp_support: true,
     });
     initializedClientId = clientId;

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchGoogleAuthConfig } from "../../api/auth";
+import { IconGoogle } from "./AuthIcons";
 import {
   fetchGoogleAuthConfigCached,
   initGoogleSignIn,
@@ -8,13 +9,20 @@ import {
   setGoogleCredentialHandler,
 } from "../../utils/googleIdentity";
 
+function clampButtonWidth(width) {
+  return Math.min(Math.max(Math.floor(width), 200), 400);
+}
+
 export default function GoogleSignIn({ onCredential, busy = false, referralCode }) {
+  const hostRef = useRef(null);
   const buttonRef = useRef(null);
   const onCredentialRef = useRef(onCredential);
-  const buttonRenderedRef = useRef(false);
+  const lastWidthRef = useRef(0);
   const [config, setConfig] = useState(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
+
+  const label = referralCode ? "Sign up with Google" : "Continue with Google";
 
   useEffect(() => {
     onCredentialRef.current = onCredential;
@@ -40,32 +48,30 @@ export default function GoogleSignIn({ onCredential, busy = false, referralCode 
   }, []);
 
   useEffect(() => {
-    if (!config?.enabled || !config.clientId) {
+    if (!config?.enabled || !config.clientId || !hostRef.current) {
       return undefined;
     }
 
     let cancelled = false;
-    buttonRenderedRef.current = false;
+    let resizeObserver;
 
-    const mountButton = async () => {
+    const mountButton = async (width) => {
       try {
         await loadGoogleIdentityScript();
-        if (cancelled || !buttonRef.current) return;
+        if (cancelled || !buttonRef.current || !hostRef.current) return;
 
         initGoogleSignIn({
           clientId: config.clientId,
           context: referralCode ? "signup" : "signin",
         });
 
-        const container = buttonRef.current;
-        const width = container.parentElement?.offsetWidth || container.offsetWidth || 360;
-
-        if (!buttonRenderedRef.current) {
-          renderGoogleButton(container, {
+        const nextWidth = clampButtonWidth(width);
+        if (lastWidthRef.current !== nextWidth) {
+          renderGoogleButton(buttonRef.current, {
             text: referralCode ? "signup_with" : "continue_with",
-            width,
+            width: nextWidth,
           });
-          buttonRenderedRef.current = true;
+          lastWidthRef.current = nextWidth;
         }
 
         if (!cancelled) {
@@ -80,17 +86,31 @@ export default function GoogleSignIn({ onCredential, busy = false, referralCode 
       }
     };
 
-    mountButton();
+    const measureAndMount = () => {
+      const width = hostRef.current?.offsetWidth ?? 0;
+      if (width > 0) mountButton(width);
+    };
+
+    measureAndMount();
+
+    if (typeof ResizeObserver !== "undefined" && hostRef.current) {
+      resizeObserver = new ResizeObserver((entries) => {
+        const width = entries[0]?.contentRect.width ?? 0;
+        if (width > 0) mountButton(width);
+      });
+      resizeObserver.observe(hostRef.current);
+    }
 
     return () => {
       cancelled = true;
+      resizeObserver?.disconnect();
     };
   }, [config, referralCode]);
 
   if (config === null) {
     return (
       <div className="google-signin" aria-hidden>
-        <div className="google-signin__placeholder google-signin__placeholder--visible">
+        <div className="google-signin__face google-signin__face--loading">
           <span className="google-signin__placeholder-spinner" aria-hidden />
           Loading Google…
         </div>
@@ -101,30 +121,37 @@ export default function GoogleSignIn({ onCredential, busy = false, referralCode 
   if (!config?.enabled) return null;
 
   return (
-    <div className={`google-signin ${busy ? "google-signin--busy" : ""}`}>
+    <div
+      ref={hostRef}
+      className={`google-signin ${busy ? "google-signin--busy" : ""} ${ready ? "google-signin--ready" : ""}`}
+    >
+      <div className="google-signin__face" aria-hidden={!ready}>
+        <IconGoogle className="google-signin__icon" />
+        <span>{label}</span>
+      </div>
+
       <div
         ref={buttonRef}
-        className={`google-signin__button ${ready ? "google-signin__button--ready" : ""}`}
-        aria-hidden={!ready}
+        className="google-signin__hit"
+        aria-label={label}
+        role="button"
       />
-      <div
-        className={`google-signin__placeholder ${ready ? "" : "google-signin__placeholder--visible"}`}
-        aria-hidden={ready}
-      >
-        {!ready && !error ? (
-          <>
-            <span className="google-signin__placeholder-spinner" aria-hidden />
-            Loading Google…
-          </>
-        ) : null}
-      </div>
+
+      {!ready && !error ? (
+        <div className="google-signin__face google-signin__face--loading" aria-hidden>
+          <span className="google-signin__placeholder-spinner" aria-hidden />
+          Loading Google…
+        </div>
+      ) : null}
+
       {busy ? (
         <div className="google-signin__busy" aria-live="polite">
           <span className="google-signin__placeholder-spinner" aria-hidden />
           Signing in with Google…
         </div>
       ) : null}
-      {error ? <p className="auth-field__hint text-center">{error}</p> : null}
+
+      {error ? <p className="auth-field__hint mt-2 text-center">{error}</p> : null}
     </div>
   );
 }
