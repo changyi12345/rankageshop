@@ -5,39 +5,50 @@ import { useAuth } from "../context/AuthContext";
 const POLL_MS = 30_000;
 
 export function useWallet() {
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
+  const userId = user?.id;
   const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(Boolean(userId));
 
-  const refresh = useCallback(async () => {
-    if (!user) {
-      setSummary(null);
-      return null;
-    }
-    setLoading(true);
-    try {
-      const data = await fetchWalletSummary();
-      setSummary(data);
-      await refreshUser();
-      return data;
-    } catch {
-      setSummary(null);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [user, refreshUser]);
+  const refresh = useCallback(
+    async ({ background = false } = {}) => {
+      if (!userId) {
+        setSummary(null);
+        setInitialLoading(false);
+        return null;
+      }
+      if (!background) {
+        setInitialLoading(true);
+      }
+      try {
+        const data = await fetchWalletSummary();
+        setSummary(data);
+        return data;
+      } catch {
+        if (!background) {
+          setSummary(null);
+        }
+        return null;
+      } finally {
+        if (!background) {
+          setInitialLoading(false);
+        }
+      }
+    },
+    [userId],
+  );
 
   useEffect(() => {
-    if (!user) {
+    if (!userId) {
       setSummary(null);
+      setInitialLoading(false);
       return undefined;
     }
 
     refresh();
 
-    const timer = window.setInterval(refresh, POLL_MS);
-    const onFocus = () => refresh();
+    const timer = window.setInterval(() => refresh({ background: true }), POLL_MS);
+    const onFocus = () => refresh({ background: true });
 
     window.addEventListener("focus", onFocus);
 
@@ -45,7 +56,7 @@ export function useWallet() {
       window.clearInterval(timer);
       window.removeEventListener("focus", onFocus);
     };
-  }, [user, refresh]);
+  }, [userId, refresh]);
 
   const balance =
     summary?.wallet_balance ??
@@ -56,7 +67,7 @@ export function useWallet() {
     balance,
     currency: summary?.currency ?? "MMK",
     pendingTopUps: summary?.pending_top_ups ?? 0,
-    loading,
+    loading: initialLoading,
     refresh,
   };
 }
