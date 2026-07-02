@@ -167,13 +167,13 @@ export default function AdminProfileMenu({ onLogout }) {
               View storefront
             </Link>
             <Link
-              to="/profile"
+              to="/admin/settings?tab=security"
               role="menuitem"
               onClick={close}
               className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-blue-900 transition-colors hover:bg-blue-50"
             >
               <PersonIcon sx={{ fontSize: 18 }} className="text-blue-600" />
-              My profile
+              Account &amp; security
             </Link>
             <button
               type="button"

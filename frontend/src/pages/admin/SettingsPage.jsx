@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
+import { changePassword } from "../../api/auth";
+import { useAuth } from "../../context/AuthContext";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SaveIcon from "@mui/icons-material/Save";
 import AddIcon from "@mui/icons-material/Add";
@@ -39,9 +41,18 @@ const FEATURE_LABELS = {
 const INPUT =
   "w-full rounded-xl border border-blue-200 bg-blue-50/50 px-4 py-3 text-sm text-blue-900 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100";
 
+function resolveInitialTab(location, searchParams) {
+  const fromUrl = searchParams.get("tab");
+  if (fromUrl && TABS.some((t) => t.id === fromUrl)) return fromUrl;
+  if (location.state?.tab && TABS.some((t) => t.id === location.state.tab)) return location.state.tab;
+  return "general";
+}
+
 export default function SettingsPage() {
   const location = useLocation();
-  const [tab, setTab] = useState(() => location.state?.tab || "general");
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const [tab, setTab] = useState(() => resolveInitialTab(location, searchParams));
   const [shop, setShop] = useState(null);
   const [integrations, setIntegrations] = useState(null);
   const [integrationForm, setIntegrationForm] = useState({
@@ -65,6 +76,12 @@ export default function SettingsPage() {
   const [twoFaDisableCode, setTwoFaDisableCode] = useState("");
   const [twoFaBackupCodes, setTwoFaBackupCodes] = useState(null);
   const [twoFaLoading, setTwoFaLoading] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [changingPassword, setChangingPassword] = useState(false);
   const logoRef = useRef(null);
   const faviconRef = useRef(null);
 
@@ -101,6 +118,11 @@ export default function SettingsPage() {
   useEffect(() => {
     fetchSettings();
   }, [fetchSettings]);
+
+  useEffect(() => {
+    const next = resolveInitialTab(location, searchParams);
+    setTab(next);
+  }, [location, searchParams]);
 
   const patchShop = (patch) => setShop((prev) => ({ ...prev, ...patch }));
 
@@ -608,6 +630,86 @@ export default function SettingsPage() {
       )}
 
       {tab === "security" && (
+        <div className="space-y-6">
+        <div className="rounded-3xl border border-blue-200/70 bg-white/90 p-7 shadow-xl shadow-blue-200/60">
+          <h2 className="mb-2 text-xl font-bold text-blue-900">Change password</h2>
+          <p className="mb-6 text-sm text-blue-600">
+            Update the password for <strong>{user?.username}</strong> ({user?.email}).
+          </p>
+
+          <form
+            className="space-y-4"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const { currentPassword, newPassword, confirmPassword } = passwordForm;
+              if (!currentPassword || !newPassword) {
+                toast.error("Fill in current and new password");
+                return;
+              }
+              if (newPassword.length < 8) {
+                toast.error("New password must be at least 8 characters");
+                return;
+              }
+              if (newPassword !== confirmPassword) {
+                toast.error("New passwords do not match");
+                return;
+              }
+              setChangingPassword(true);
+              try {
+                await changePassword({ currentPassword, newPassword });
+                toast.success("Password updated");
+                setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+              } catch (err) {
+                toast.error(err?.message || "Failed to change password");
+              } finally {
+                setChangingPassword(false);
+              }
+            }}
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Current password">
+                <input
+                  type="password"
+                  className={INPUT}
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm((f) => ({ ...f, currentPassword: e.target.value }))}
+                  autoComplete="current-password"
+                  required
+                />
+              </Field>
+              <Field label="New password">
+                <input
+                  type="password"
+                  className={INPUT}
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm((f) => ({ ...f, newPassword: e.target.value }))}
+                  autoComplete="new-password"
+                  minLength={8}
+                  required
+                />
+              </Field>
+              <Field label="Confirm new password" className="sm:col-span-2">
+                <input
+                  type="password"
+                  className={INPUT}
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+                  autoComplete="new-password"
+                  minLength={8}
+                  required
+                />
+              </Field>
+            </div>
+            <button
+              type="submit"
+              disabled={changingPassword}
+              className="rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+            >
+              {changingPassword ? "Updating…" : "Update password"}
+            </button>
+          </form>
+        </div>
+
         <div className="rounded-3xl border border-blue-200/70 bg-white/90 p-7 shadow-xl shadow-blue-200/60">
           <h2 className="mb-2 text-xl font-bold text-blue-900">Two-factor authentication (2FA)</h2>
           <p className="mb-6 text-sm text-blue-600">
@@ -762,6 +864,7 @@ export default function SettingsPage() {
               </ul>
             </div>
           ) : null}
+        </div>
         </div>
       )}
     </div>
